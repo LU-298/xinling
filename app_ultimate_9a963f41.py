@@ -2,37 +2,41 @@
 心灵伙伴 - 治愈系心理健康数字人 🌱
 """
 import streamlit as st
+import time
 
 st.set_page_config(page_title="心灵伙伴", page_icon="🌱", layout="wide")
 
-# DeepSeek API - 直接写在这里
 API_KEY = "sk-eb28d368d6054551bad7e34daac57efd"
 API_URL = "https://api.deepseek.com"
 
-# 数字人图片 - 公开URL
 ROBOT_URL = "https://coze-coding-project.tos.coze.site/coze_storage_7625532895788105770/xinling-robot-v3_d3a96781.png?sign=1778082926-5227363965-0-fa71766199f5eb7764b262bfbd1579ef8ce81999b856f7a3c4675f29a181598d"
 
 def get_ai_response(user_msg):
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=API_KEY, base_url=API_URL)
-        system_prompt = "你是心灵伙伴，温暖的AI心理健康陪伴助手。像朋友一样聊天，善于倾听，回复简洁，用emoji。"
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_msg}
-            ],
-            max_tokens=100,
-            temperature=0.8
-        )
-        return response.choices[0].message.content
-    except:
-        return "连接有点问题呢... 💭"
+    """调用DeepSeek API，带重试"""
+    for attempt in range(3):
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=API_KEY, base_url=API_URL, timeout=60)
+            system_prompt = "你是心灵伙伴，温暖的AI心理健康陪伴助手。像朋友一样聊天，善于倾听，回复简洁，用emoji。"
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=80,
+                temperature=0.8
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(1)
+                continue
+            return "连接有点问题呢... 💭 请稍后再试"
+    return "连接有点问题呢... 💭 请稍后再试"
 
 def clean_for_js(text):
-    text = text.replace("\n", " ").replace('"', "'").replace("\\", "\\\\")
-    return text
+    return text.replace("\n", " ").replace('"', "'").replace("\\", "")
 
 EMOTIONS = {
     "happy": {"name": "开心", "emoji": "😊"},
@@ -62,7 +66,6 @@ def detect_emotion(text):
                 return emotion
     return "neutral"
 
-# 语音朗读
 st.components.v1.html("""
 <script>
 function speakText(text) {
@@ -78,7 +81,6 @@ function speakText(text) {
 </script>
 """, height=0)
 
-# 眨眼
 st.components.v1.html("""
 <script>
 setInterval(function() {
@@ -91,7 +93,6 @@ setInterval(function() {
 </script>
 """, height=0)
 
-# CSS
 st.markdown("""
 <style>
 .stApp { background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%); font-family: 'Noto Sans SC', sans-serif; }
@@ -120,7 +121,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 初始化
 if "msgs" not in st.session_state:
     st.session_state.msgs = [{"role": "bot", "content": "你好呀！我是心灵伙伴 🌱\n\n很高兴认识你~有什么想和我聊聊的吗？"}]
 if "cur_emotion" not in st.session_state:
@@ -128,7 +128,6 @@ if "cur_emotion" not in st.session_state:
 
 e = EMOTIONS[st.session_state.cur_emotion]
 
-# 顶部
 st.markdown(f"""
 <div class="top-area">
     <div class="avatar-box">
@@ -139,7 +138,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 聊天
 st.markdown('<div class="chat-box">', unsafe_allow_html=True)
 st.markdown('<div class="chat-title">💬 对话</div>', unsafe_allow_html=True)
 st.markdown('<div class="chat-msgs">', unsafe_allow_html=True)
@@ -165,7 +163,6 @@ with col_send:
 
 st.markdown('</div></div>', unsafe_allow_html=True)
 
-# 发送
 if send_btn and user_input.strip():
     user_text = user_input.strip()
     st.session_state.msgs.append({"role": "user", "content": user_text})
@@ -184,7 +181,6 @@ if send_btn and user_input.strip():
     
     st.rerun()
 
-# 清空
 if clear_btn:
     st.session_state.msgs = [{"role": "bot", "content": "好的，我们重新开始吧！🌱\n\n有什么想和我聊聊的吗？"}]
     st.session_state.cur_emotion = "neutral"
