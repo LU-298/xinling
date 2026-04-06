@@ -5,8 +5,8 @@ import streamlit as st
 
 st.set_page_config(page_title="心灵伙伴", page_icon="🌱", layout="wide")
 
-# 从secrets读取密钥（安全）
-API_KEY = st.secrets["deepseek_api_key"]
+# DeepSeek API - 直接写在这里
+API_KEY = "sk-eb28d368d6054551bad7e34daac57efd"
 API_URL = "https://api.deepseek.com"
 
 # 数字人图片 - 公开URL
@@ -62,7 +62,7 @@ def detect_emotion(text):
                 return emotion
     return "neutral"
 
-# 语音朗读JS
+# 语音朗读
 st.components.v1.html("""
 <script>
 function speakText(text) {
@@ -78,7 +78,7 @@ function speakText(text) {
 </script>
 """, height=0)
 
-# 眨眼JS
+# 眨眼
 st.components.v1.html("""
 <script>
 setInterval(function() {
@@ -178,7 +178,6 @@ if send_btn and user_input.strip():
     
     st.session_state.msgs.append({"role": "bot", "content": response})
     
-    # 朗读 - 修复版
     clean_text = clean_for_js(response)
     js_code = '<script>speakText("%s");</script>' % clean_text
     st.markdown(js_code, unsafe_allow_html=True)
