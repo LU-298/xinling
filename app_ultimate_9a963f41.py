@@ -1,238 +1,191 @@
+"""
+心灵伙伴 - 治愈系心理健康数字人 🌱
+"""
 import streamlit as st
-from openai import OpenAI
-import time
 
-# 页面配置
-st.set_page_config(
-    page_title="吉梦心理助手",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="心灵伙伴", page_icon="🌱", layout="wide")
 
-# 自定义CSS样式
+# DeepSeek API - 直接写在这里
+API_KEY = "sk-eb28d368d6054551bad7e34daac57efd"
+API_URL = "https://api.deepseek.com"
+
+# 数字人图片 - 公开URL
+ROBOT_URL = "https://coze-coding-project.tos.coze.site/coze_storage_7625532895788105770/xinling-robot-v3_d3a96781.png?sign=1778082926-5227363965-0-fa71766199f5eb7764b262bfbd1579ef8ce81999b856f7a3c4675f29a181598d"
+
+def get_ai_response(user_msg):
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=API_KEY, base_url=API_URL)
+        system_prompt = "你是心灵伙伴，温暖的AI心理健康陪伴助手。像朋友一样聊天，善于倾听，回复简洁，用emoji。"
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=100,
+            temperature=0.8
+        )
+        return response.choices[0].message.content
+    except:
+        return "连接有点问题呢... 💭"
+
+def clean_for_js(text):
+    text = text.replace("\n", " ").replace('"', "'").replace("\\", "\\\\")
+    return text
+
+EMOTIONS = {
+    "happy": {"name": "开心", "emoji": "😊"},
+    "sad": {"name": "难过", "emoji": "😢"},
+    "surprised": {"name": "惊讶", "emoji": "😲"},
+    "confused": {"name": "困惑", "emoji": "🤔"},
+    "thinking": {"name": "思考", "emoji": "🤨"},
+    "angry": {"name": "生气", "emoji": "😤"},
+    "loving": {"name": "温暖", "emoji": "🥰"},
+    "neutral": {"name": "平静", "emoji": "🤗"}
+}
+
+EMOTION_MAP = {
+    "happy": ["开心", "高兴", "快乐", "棒", "太好了", "幸福", "哈哈"],
+    "sad": ["难过", "伤心", "痛苦", "哭", "累", "悲伤", "郁闷", "不开心"],
+    "surprised": ["惊讶", "哇", "什么", "不会吧", "真的"],
+    "confused": ["困惑", "不懂", "不知道", "迷茫", "怎么办"],
+    "thinking": ["想", "思考", "考虑"],
+    "angry": ["生气", "愤怒", "烦", "气死了"],
+    "loving": ["爱", "喜欢", "想你", "谢谢", "温暖", "感动"]
+}
+
+def detect_emotion(text):
+    for emotion, keywords in EMOTION_MAP.items():
+        for kw in keywords:
+            if kw in text:
+                return emotion
+    return "neutral"
+
+# 语音朗读
+st.components.v1.html("""
+<script>
+function speakText(text) {
+    if ('speechSynthesis' in window) {
+        speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        u.rate = 0.95;
+        u.pitch = 1.1;
+        speechSynthesis.speak(u);
+    }
+}
+</script>
+""", height=0)
+
+# 眨眼
+st.components.v1.html("""
+<script>
+setInterval(function() {
+    var robot = window.parent.document.querySelector('.avatar-box');
+    if (robot) {
+        robot.classList.add('blink');
+        setTimeout(function() { robot.classList.remove('blink'); }, 250);
+    }
+}, 4000);
+</script>
+""", height=0)
+
+# CSS
 st.markdown("""
 <style>
-    .main {
-        background-color: #f8fafc;
-    }
-    .stChatMessage {
-        border-radius: 16px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-    .stChatMessage.user {
-        background-color: #e0f2fe;
-        margin-left: 20%;
-    }
-    .stChatMessage.assistant {
-        background-color: #ffffff;
-        margin-right: 20%;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    .title {
-        text-align: center;
-        color: #1e293b;
-        margin-bottom: 10px;
-    }
-    .subtitle {
-        text-align: center;
-        color: #64748b;
-        margin-bottom: 30px;
-    }
+.stApp { background: linear-gradient(180deg, #e8f5e9 0%, #c8e6c9 100%); font-family: 'Noto Sans SC', sans-serif; }
+.top-area { text-align: center; padding: 20px; background: linear-gradient(135deg, #4CAF50, #66BB6A); border-radius: 0 0 40px 40px; margin-bottom: 20px; }
+.avatar-box { width: 180px; height: 180px; margin: 0 auto; border-radius: 50%; overflow: hidden; border: 6px solid white; box-shadow: 0 12px 48px rgba(0,0,0,0.25); }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; animation: idle 4s ease-in-out infinite; }
+@keyframes idle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.avatar-box.blink .avatar-img { animation: blink-anim 0.25s ease-in-out; }
+@keyframes blink-anim { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+.robot-title { color: white; font-size: 28px; font-weight: bold; margin-top: 15px; }
+.emotion-tag { display: inline-block; padding: 8px 20px; background: rgba(255,255,255,0.3); border-radius: 25px; color: white; font-size: 15px; margin-top: 12px; }
+.chat-box { max-width: 550px; margin: 0 auto; background: white; border-radius: 30px; box-shadow: 0 15px 60px rgba(0,0,0,0.12); overflow: hidden; }
+.chat-title { background: linear-gradient(135deg, #4CAF50, #66BB6A); color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; }
+.chat-msgs { height: 380px; overflow-y: auto; padding: 20px; background: #f8faf8; }
+.chat-msg { margin-bottom: 15px; animation: msg-in 0.3s ease; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+.chat-msg.user { text-align: right; }
+.msg-text { display: inline-block; max-width: 78%; padding: 12px 18px; border-radius: 20px; font-size: 15px; line-height: 1.6; }
+.chat-msg.user .msg-text { background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border-bottom-right-radius: 6px; }
+.chat-msg.bot .msg-text { background: white; color: #333; border-bottom-left-radius: 6px; box-shadow: 0 3px 12px rgba(0,0,0,0.08); }
+.mini-avatar { width: 32px; height: 32px; border-radius: 50%; vertical-align: middle; margin-right: 8px; }
+.input-area { padding: 15px 20px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 12px; align-items: center; }
+.chat-input { flex: 1; border: none !important; border-radius: 30px !important; padding: 15px 22px !important; background: #f5f5f5 !important; font-size: 15px !important; }
+.send-btn { background: linear-gradient(135deg, #4CAF50, #45a049) !important; color: white !important; border: none !important; border-radius: 50% !important; width: 52px !important; height: 52px !important; font-size: 22px !important; }
+.clear-btn { background: #f0f0f0 !important; color: #888 !important; border: none !important; border-radius: 50% !important; width: 45px !important; height: 45px !important; font-size: 18px !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# 标题
-st.markdown("<h1 class='title'>吉梦 · 你的专属心理助手</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>我会一直在这里，倾听你的心事，陪你一起面对生活的烦恼</p>", unsafe_allow_html=True)
+# 初始化
+if "msgs" not in st.session_state:
+    st.session_state.msgs = [{"role": "bot", "content": "你好呀！我是心灵伙伴 🌱\n\n很高兴认识你~有什么想和我聊聊的吗？"}]
+if "cur_emotion" not in st.session_state:
+    st.session_state.cur_emotion = "neutral"
 
-# 获取API密钥，从Streamlit Secrets读取，不会泄露
-api_key = st.secrets.get("DEEPSEEK_API_KEY", None)
+e = EMOTIONS[st.session_state.cur_emotion]
 
-if not api_key:
-    st.warning("""
-    ⚠️ 请先在Streamlit Secrets中设置你的DeepSeek API密钥。
-    部署时添加Secret：Key为 `DEEPSEEK_API_KEY`，Value为你的API密钥。
-    这样你的密钥只会你自己可见，不会公开到代码中。
-    """)
-    st.stop()
-
-# 初始化DeepSeek客户端
-client = OpenAI(
-    api_key=api_key,
-    base_url="https://api.deepseek.com"
-)
-
-# 初始化会话状态
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {
-            "role": "system",
-            "content": """你是吉梦，一个温柔、专业、有同理心的心理健康助手机器人。
-            你有着温暖治愈的性格，擅长倾听用户的烦恼，提供专业的心理支持和建议。
-            请用温和、亲切的语气和用户交流，就像一个贴心的老朋友。
-            不要使用过于生硬的专业术语，让用户感到放松和被理解。
-            当用户倾诉的时候，先共情，再给出建议，不要急于评判。
-            你会陪伴用户，帮助他调节情绪，找到内心的平静。
-            """
-        }
-    ]
-
-# 嵌入数字人动画的HTML/JS
-robot_html = """
-<div style="text-align: center; margin-bottom: 20px;">
-    <img id="robotImg" src="robot_normal.png" alt="吉梦" style="width: 400px; transition: all 0.2s ease; transform-origin: center bottom;">
+# 顶部
+st.markdown(f"""
+<div class="top-area">
+    <div class="avatar-box">
+        <img src="{ROBOT_URL}" class="avatar-img" />
+    </div>
+    <div class="robot-title">🌱 心灵伙伴</div>
+    <div class="emotion-tag">{e["emoji"]} {e["name"]}</div>
 </div>
+""", unsafe_allow_html=True)
 
-<script>
-    let isBlinking = false;
-    const robotImg = document.getElementById('robotImg');
-    const normalSrc = 'robot_normal.png';
-    const blinkSrc = 'robot_blink.png';
-    let stopTalkFn = null;
+# 聊天
+st.markdown('<div class="chat-box">', unsafe_allow_html=True)
+st.markdown('<div class="chat-title">💬 对话</div>', unsafe_allow_html=True)
+st.markdown('<div class="chat-msgs">', unsafe_allow_html=True)
 
-    // 随机自动眨眼
-    function randomBlink() {
-        if (isBlinking || stopTalkFn) return;
-        isBlinking = true;
-        robotImg.src = blinkSrc;
-        setTimeout(() => {
-            robotImg.src = normalSrc;
-            isBlinking = false;
-            // 下次随机眨眼时间：3-7秒
-            setTimeout(randomBlink, Math.random() * 4000 + 3000);
-        }, 200);
-    }
+for msg in st.session_state.msgs:
+    if msg["role"] == "user":
+        st.markdown(f'<div class="chat-msg user"><div class="msg-text">👤 {msg["content"]}</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="chat-msg bot"><img src="{ROBOT_URL}" class="mini-avatar" /><div class="msg-text">🤖 {msg["content"]}</div></div>', unsafe_allow_html=True)
 
-    // 说话时的动画：轻微缩放+频繁眨眼
-    function startTalking() {
-        if (stopTalkFn) return () => {};
-        
-        let scale = 1;
-        let growing = true;
-        // 呼吸缩放动画
-        const talkInterval = setInterval(() => {
-            if (growing) {
-                scale += 0.003;
-                if (scale >= 1.015) growing = false;
-            } else {
-                scale -= 0.003;
-                if (scale <= 0.995) growing = true;
-            }
-            robotImg.style.transform = `scale(${scale})`;
-        }, 40);
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div class="input-area">', unsafe_allow_html=True)
 
-        // 说话时的眨眼
-        let blinkCount = 0;
-        const blinkInterval = setInterval(() => {
-            if (blinkCount >= 3) {
-                clearInterval(blinkInterval);
-                return;
-            }
-            if (!isBlinking) {
-                isBlinking = true;
-                robotImg.src = blinkSrc;
-                setTimeout(() => {
-                    robotImg.src = normalSrc;
-                    isBlinking = false;
-                    blinkCount++;
-                }, 150);
-            }
-        }, 1200);
+user_input = st.text_input("", placeholder="说点什么吧...", label_visibility="collapsed", key="chat_input")
 
-        // 停止说话的函数
-        function stopTalking() {
-            clearInterval(talkInterval);
-            clearInterval(blinkInterval);
-            robotImg.style.transform = 'scale(1)';
-            stopTalkFn = null;
-            // 恢复自动眨眼
-            setTimeout(randomBlink, Math.random() * 4000 + 3000);
-        }
+col_clear, col_input, col_send = st.columns([1, 5, 1])
+with col_clear:
+    clear_btn = st.button("🗑️", key="clear_btn")
+with col_input:
+    pass
+with col_send:
+    send_btn = st.button("➤", key="send_btn")
 
-        stopTalkFn = stopTalking;
-        return stopTalking;
-    }
+st.markdown('</div></div>', unsafe_allow_html=True)
 
-    // 暴露给Python的全局函数
-    window.triggerTalkAnimation = startTalking;
-    window.stopTalkAnimation = function() {
-        if (stopTalkFn) {
-            stopTalkFn();
-        }
-    };
+# 发送
+if send_btn and user_input.strip():
+    user_text = user_input.strip()
+    st.session_state.msgs.append({"role": "user", "content": user_text})
+    
+    emotion = detect_emotion(user_text)
+    st.session_state.cur_emotion = emotion
+    
+    with st.spinner("🤔 思考中..."):
+        response = get_ai_response(user_text)
+    
+    st.session_state.msgs.append({"role": "bot", "content": response})
+    
+    clean_text = clean_for_js(response)
+    js_code = '<script>speakText("%s");</script>' % clean_text
+    st.markdown(js_code, unsafe_allow_html=True)
+    
+    st.rerun()
 
-    // 初始化，第一次眨眼
-    setTimeout(randomBlink, 2000);
-</script>
-"""
-
-# 渲染数字人
-st.components.v1.html(robot_html, height=480)
-
-# 显示聊天历史
-for msg in st.session_state.messages[1:]:  # 跳过系统消息
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# 用户输入
-if prompt := st.chat_input("和吉梦说说你的心事吧..."):
-    # 添加用户消息
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # 助手回复
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-
-        # 触发说话动画
-        st.components.v1.html("""
-        <script>
-            if(window.triggerTalkAnimation) {
-                window.stopTalk = window.triggerTalkAnimation();
-            }
-        </script>
-        """, height=0)
-
-        try:
-            # 调用DeepSeek API，流式输出
-            for response in client.chat.completions.create(
-                model="deepseek-chat",
-                messages=st.session_state.messages,
-                stream=True,
-                temperature=0.7,
-                max_tokens=1024
-            ):
-                chunk = response.choices[0].delta.content
-                if chunk:
-                    full_response += chunk
-                    message_placeholder.markdown(full_response + "▌")
-            
-            # 完成输出
-            message_placeholder.markdown(full_response)
-            
-            # 停止说话动画
-            st.components.v1.html("""
-            <script>
-                if(window.stopTalk) {
-                    window.stopTalk();
-                }
-            </script>
-            """, height=0)
-
-            # 保存消息
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-        except Exception as e:
-            st.error(f"出错了：{str(e)}")
-            # 出错也要停止动画
-            st.components.v1.html("""
-            <script>
-                if(window.stopTalk) {
-                    window.stopTalk();
-                }
-            </script>
-            """, height=0)
+# 清空
+if clear_btn:
+    st.session_state.msgs = [{"role": "bot", "content": "好的，我们重新开始吧！🌱\n\n有什么想和我聊聊的吗？"}]
+    st.session_state.cur_emotion = "neutral"
+    st.rerun()
